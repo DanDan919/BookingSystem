@@ -1,3 +1,4 @@
+using Booking.Application.DTO;
 using Booking.Domain.Entities;
 using Booking.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
@@ -24,8 +25,10 @@ public class RoomsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create(Room room)
+    public async Task<IActionResult> Create(CreateRoomDto request)
     {
+        var room = new Room(request.Class, request.PricePerDay, request.Description);
+
         _db.Rooms.Add(room);
         await _db.SaveChangesAsync();
 
