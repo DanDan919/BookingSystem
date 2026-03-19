@@ -14,7 +14,7 @@ public static class DependencyInjection
     {
         Console.WriteLine("=== AddInfrastructure START ===");
 
-        var connectionString = configuration.GetConnectionString("Default");
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
         Console.WriteLine($"[INFRA] ConnectionString: {connectionString}");
 
         services.AddDbContext<Persistence.BookingDbContext>(options =>
