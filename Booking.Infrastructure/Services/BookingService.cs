@@ -17,13 +17,15 @@ public class BookingService : IBookingService
 
     public async Task<BookingDto> CreateAsync(CreateBookingDto dto)
     {
-        var roomExists = await _db.Rooms.AnyAsync(r => r.Id == dto.RoomId);
+        var roomExists = await _db.Rooms
+            .AnyAsync(r => r.Id == dto.RoomId && !r.IsDeleted);
+
         if (!roomExists)
             throw new InvalidOperationException("Комната не существует");
 
-        var conflict = await _db.Bookings.AnyAsync(b =>
-            b.RoomId == dto.RoomId &&
-            b.Intersects(dto.DateFrom, dto.DateTo));
+        var conflict = await _db.Bookings
+            .AnyAsync(b => b.RoomId == dto.RoomId &&
+                           b.Intersects(dto.DateFrom, dto.DateTo));
 
         if (conflict)
             throw new InvalidOperationException("Комната уже забронирована");
