@@ -1,4 +1,5 @@
 using Booking.Application.DTO;
+using Booking.Application.Interfaces;
 using Booking.Domain.Entities;
 using Booking.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
@@ -6,45 +7,47 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Booking.Api.Controllers;
 
+
 [ApiController]
 [Route("api/rooms")]
 public class RoomsController : ControllerBase
 {
-    private readonly BookingDbContext _db;
+    private readonly IRoomService _roomService;
 
-    public RoomsController(BookingDbContext db)
+    public RoomsController(IRoomService roomService)
     {
-        _db = db;
+        _roomService = roomService;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var rooms = await _db.Rooms.ToListAsync();
+        var rooms = await _roomService.GetAllAsync();
         return Ok(rooms);
+    }
+
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var room = await _roomService.GetByIdAsync(id);
+
+        if (room == null)
+            return NotFound();
+
+        return Ok(room);
     }
 
     [HttpPost]
     public async Task<IActionResult> Create(CreateRoomDto request)
     {
-        var room = new Room(request.Class, request.PricePerDay, request.Description);
-
-        _db.Rooms.Add(room);
-        await _db.SaveChangesAsync();
-
-        return Ok(room);
+        var createdRoom = await _roomService.CreateRoomAsync(request);
+        return Ok(createdRoom);
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var room = await _db.Rooms.FindAsync(id);
-        if (room == null)
-            return NotFound();
-
-        _db.Rooms.Remove(room);
-        await _db.SaveChangesAsync();
-
+        await _roomService.DeleteRoomAsync(id);
         return NoContent();
     }
 }

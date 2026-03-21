@@ -48,7 +48,7 @@ public class RoomService : IRoomService
         _logger.LogInformation("DeleteRoomAsync | RoomId={RoomId}", roomId);
 
         var room = await _dbContext.Rooms
-            .FirstOrDefaultAsync(r => r.Id == roomId);
+       .FirstOrDefaultAsync(r => r.Id == roomId && !r.IsDeleted);
 
         if (room == null)
         {
