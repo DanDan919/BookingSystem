@@ -1,4 +1,4 @@
-
+using Booking.Api.Middleware;
 using Booking.Infrastructure.Persistence;
 using Booking.Infrastructure.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 
 builder.Services.AddControllers();
+
 
 
 builder.Services.AddEndpointsApiExplorer();
@@ -33,5 +34,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseAuthorization();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.MapControllers();
 app.Run();

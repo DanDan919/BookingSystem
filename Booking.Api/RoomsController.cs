@@ -50,14 +50,7 @@ public class RoomsController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        try
-        {
-            await _roomService.DeleteRoomAsync(id);
-            return NoContent();
-        }
-        catch (InvalidOperationException)
-        {
-            return NotFound();
-        }
+        await _roomService.DeleteRoomAsync(id);
+        return NoContent();
     }
 }
