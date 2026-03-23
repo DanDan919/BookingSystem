@@ -74,6 +74,32 @@ public class RoomService : IRoomService
         return rooms.Select(MapToDto).ToList();
     }
 
+    public async Task<RoomDto> UpdateRoomAsync(int roomId, UpdateRoomDto dto)
+    {
+        _logger.LogInformation(
+            "UpdateRoomAsync | RoomId={RoomId}, Class={Class}, PricePerDay={Price}",
+            roomId,
+            dto.Class,
+            dto.PricePerDay);
+
+        var room = await _dbContext.Rooms
+            .FirstOrDefaultAsync(r => r.Id == roomId && !r.IsDeleted);
+
+        if (room == null)
+        {
+            _logger.LogWarning("Комната не найдена | RoomId={RoomId}", roomId);
+            throw new InvalidOperationException($"Комната {roomId} не найдена");
+        }
+
+        room.Update(dto.Class, dto.PricePerDay, dto.Description);
+
+        await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("Комната обновлена | RoomId={RoomId}", roomId);
+
+        return MapToDto(room);
+    }
+
     public async Task<RoomDto?> GetByIdAsync(int roomId)
     {
         _logger.LogInformation("GetByIdAsync | RoomId={RoomId}", roomId);

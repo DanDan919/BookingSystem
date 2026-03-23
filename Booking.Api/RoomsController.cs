@@ -36,6 +36,13 @@ public class RoomsController : ControllerBase
         return Ok(room);
     }
 
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateRoomDto request)
+    {
+        var updatedRoom = await _roomService.UpdateRoomAsync(id, request);
+        return Ok(updatedRoom);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create(CreateRoomDto request)
     {

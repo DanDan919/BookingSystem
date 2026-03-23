@@ -20,6 +20,16 @@ public class Room
         IsDeleted = false;
     }
 
+    public void Update(string roomClass, decimal pricePerDay, string description)
+    {
+        if (IsDeleted)
+            throw new InvalidOperationException("Нельзя изменить удалённую комнату");
+
+        Class = roomClass;
+        PricePerDay = pricePerDay;
+        Description = description;
+    }
+
     public void Delete()
     {
         IsDeleted = true;
