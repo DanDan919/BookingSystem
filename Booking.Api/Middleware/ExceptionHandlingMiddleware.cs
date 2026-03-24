@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using Booking.Application.Exceptions;
 
 namespace Booking.Api.Middleware;
 
@@ -21,33 +22,57 @@ public class ExceptionHandlingMiddleware
         {
             await _next(context);
         }
-        catch (InvalidOperationException ex)
+        catch (ValidationException ex)
         {
-            _logger.LogWarning(ex, "Business error");
+            _logger.LogWarning(ex, "Validation error");
 
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            context.Response.ContentType = "application/json";
+            await WriteResponseAsync(
+                context,
+                StatusCodes.Status400BadRequest,
+                ex.Message);
+        }
+        catch (NotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Resource not found");
 
-            var response = new
-            {
-                message = ex.Message
-            };
+            await WriteResponseAsync(
+                context,
+                StatusCodes.Status404NotFound,
+                ex.Message);
+        }
+        catch (ConflictException ex)
+        {
+            _logger.LogWarning(ex, "Conflict error");
 
-            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+            await WriteResponseAsync(
+                context,
+                StatusCodes.Status409Conflict,
+                ex.Message);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception");
 
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            context.Response.ContentType = "application/json";
-
-            var response = new
-            {
-                message = "Internal server error"
-            };
-
-            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+            await WriteResponseAsync(
+                context,
+                StatusCodes.Status500InternalServerError,
+                "Internal server error");
         }
+    }
+
+    private static async Task WriteResponseAsync(
+        HttpContext context,
+        int statusCode,
+        string message)
+    {
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/json";
+
+        var response = new
+        {
+            message
+        };
+
+        await context.Response.WriteAsync(JsonSerializer.Serialize(response));
     }
 }

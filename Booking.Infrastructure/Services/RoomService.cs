@@ -1,6 +1,7 @@
 using Booking.Application.DTO;
 using Booking.Application.Interfaces;
 using Booking.Domain.Entities;
+using Booking.Application.Exceptions;
 using Booking.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -28,6 +29,15 @@ public class RoomService : IRoomService
             "CreateRoomAsync | Class={Class}, PricePerDay={Price}",
             dto.Class,
             dto.PricePerDay);
+
+        if (string.IsNullOrWhiteSpace(dto.Class))
+            throw new ValidationException("Класс комнаты обязателен");
+
+        if (string.IsNullOrWhiteSpace(dto.Description))
+            throw new ValidationException("Описание комнаты обязательно");
+
+        if (dto.PricePerDay <= 0)
+            throw new ValidationException("Цена комнаты должна быть больше нуля");
 
         var room = new Room(
             dto.Class,
