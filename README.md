@@ -1,127 +1,86 @@
-Booking Service – Web API
- Project Overview
+# BookingSystem
 
-This project is a Web API for managing room bookings, built as a pet project to practice clean architecture, ASP.NET Web API, Entity Framework Core, and basic system design.
+A pet project built to practice ASP.NET Core Web API, Entity Framework Core, PostgreSQL, layered architecture, and backend design fundamentals.
 
-The system allows:
+The project models a simple booking system where:
 
-administrators to manage rooms
+- administrators manage rooms
+- users create and view bookings
+- the system prevents overlapping bookings for the same room and date range
 
-users to create and view bookings
+## Tech Stack
 
-prevention of double-booking for the same room and date range
+- C#
+- .NET / ASP.NET Core Web API
+- Entity Framework Core
+- PostgreSQL
+- Swagger / OpenAPI
+- Docker / docker-compose
 
-The project follows a layered (clean) architecture approach.
+## Solution Structure
 
- Technical Stack
+The solution is split into separate layers:
 
-.NET (ASP.NET Web API)
+- **Booking.Api** — HTTP layer, controllers, middleware, Swagger, request pipeline
+- **Booking.Application** — DTOs, interfaces, contracts, application-level abstractions
+- **Booking.Domain** — entities and core business rules
+- **Booking.Infrastructure** — EF Core, DbContext, services, persistence, dependency injection
 
-Entity Framework Core
+This structure helps keep delivery concerns, business rules, and persistence concerns separated.
 
-PostgreSQL
+## Current Features
 
-Swagger / OpenAPI
+### Room Management
 
-Docker (configuration prepared)
-
-C#
-
- Architecture
-
-The solution is structured into separate layers:
-
-Booking.Api
-Web API layer (controllers, Swagger, HTTP pipeline)
-
-Booking.Application
-Application logic, DTOs, interfaces
-
-Booking.Domain
-Domain entities and domain rules
-
-Booking.Infrastructure
-EF Core, DbContext, repositories/services, database configuration
-
-This separation keeps business logic isolated from infrastructure and delivery mechanisms.
-
- Functional Requirements (Technical Task)
-Administrator functionality
-
-Create a room
-
-Delete a room
-
-Get room information
+- create a room
+- get all rooms
+- get room by id
+- update a room
+- soft delete a room
 
 Each room contains:
 
-Class (e.g. Standard, Deluxe)
+- `Class`
+- `Description`
+- `PricePerDay`
 
-Price per day
+### Booking Management
 
-Description
+- create a booking
+- get booking by id
+- validate date range
+- prevent double-booking for the same room and overlapping dates
+- prevent booking a deleted room
 
-User functionality
+## Business Rules
 
-Book a room for a specific date range
+- a booking must have a valid date range
+- a room cannot be booked if another booking for the same room intersects the requested dates
+- deleted rooms are excluded from active room queries
+- deleted rooms cannot be used for new bookings
 
-Get booking information
+## API Endpoints
 
-Cannot book a room if it is already booked for the selected dates
+### Rooms
 
-Additional requirements
+- `GET /api/rooms`
+- `GET /api/rooms/{id}`
+- `POST /api/rooms`
+- `PUT /api/rooms/{id}`
+- `DELETE /api/rooms/{id}`
 
-Data persistence via Entity Framework Core
+### Bookings
 
-Database: PostgreSQL
+- `POST /api/bookings`
+- `GET /api/bookings/{id}`
 
-Web API project
+## Example Requests
 
-Layered architecture
+### Create Room
 
-Docker support
-
-What Is Implemented
-
-RESTful Web API
-
-Room management (create, delete, get)
-
-Booking creation with date range validation
-
-Booking conflict detection (no overlapping bookings)
-
-Entity Framework Core integration
-
-PostgreSQL-compatible data model
-
-Swagger UI for API exploration
-
-Clean separation of layers (Domain / Application / Infrastructure / API)
-
-Dockerfile and docker-compose configuration prepared
-
- Docker Status
-
-Docker configuration files (Dockerfile, docker-compose.yml) are present.
-
-However:
-
-The application was NOT run locally inside Docker,
-because hardware virtualization is disabled on the current machine.
-
-The Docker setup is prepared for deployment and should work in an environment with virtualization support enabled.
-
- Running the Project
-Local run (without Docker)
-
-Configure the PostgreSQL connection string in appsettings.json
-
-Apply migrations (if needed)
-
-Run Booking.Api
-
-Open Swagger UI:
-
-https://localhost:{port}/swagger
+```json
+{
+  "class": "Standard",
+  "description": "Room with one double bed",
+  "pricePerDay": 15000
+}

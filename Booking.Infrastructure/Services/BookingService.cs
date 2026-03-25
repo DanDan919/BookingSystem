@@ -1,7 +1,8 @@
 using Booking.Application.DTO;
+using Booking.Application.Exceptions;
 using Booking.Application.Interfaces;
-using Booking.Infrastructure.Persistence;
 using Booking.Domain.Entities;
+using Booking.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Booking.Infrastructure.Services;
@@ -17,18 +18,27 @@ public class BookingService : IBookingService
 
     public async Task<BookingDto> CreateAsync(CreateBookingDto dto)
     {
+        if (dto.RoomId <= 0)
+            throw new ValidationException("RoomId должен быть больше нуля");
+
+        if (dto.UserId <= 0)
+            throw new ValidationException("UserId должен быть больше нуля");
+
+        if (dto.DateFrom >= dto.DateTo)
+            throw new ValidationException("Дата начала должна быть раньше даты окончания");
+
         var roomExists = await _db.Rooms
             .AnyAsync(r => r.Id == dto.RoomId && !r.IsDeleted);
 
         if (!roomExists)
-            throw new InvalidOperationException("Комната не существует");
+            throw new NotFoundException("Комната не существует");
 
         var conflict = await _db.Bookings
             .AnyAsync(b => b.RoomId == dto.RoomId &&
                            b.Intersects(dto.DateFrom, dto.DateTo));
 
         if (conflict)
-            throw new InvalidOperationException("Комната уже забронирована");
+            throw new ConflictException("Комната уже забронирована");
 
         var booking = new BookingEntity(
             dto.RoomId,
@@ -45,6 +55,9 @@ public class BookingService : IBookingService
 
     public async Task<BookingDto?> GetByIdAsync(int bookingId)
     {
+        if (bookingId <= 0)
+            throw new ValidationException("BookingId должен быть больше нуля");
+
         var booking = await _db.Bookings
             .AsNoTracking()
             .FirstOrDefaultAsync(b => b.Id == bookingId);
@@ -54,9 +67,13 @@ public class BookingService : IBookingService
 
     public async Task<List<BookingDto>> GetByUserAsync(int userId)
     {
+        if (userId <= 0)
+            throw new ValidationException("UserId должен быть больше нуля");
+
         var bookings = await _db.Bookings
             .AsNoTracking()
             .Where(b => b.UserId == userId)
+            .OrderBy(b => b.DateFrom)
             .ToListAsync();
 
         return bookings.Select(MapToDto).ToList();
