@@ -7,13 +7,16 @@ public class ExceptionHandlingMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+    private readonly IHostEnvironment _environment;
 
     public ExceptionHandlingMiddleware(
         RequestDelegate next,
-        ILogger<ExceptionHandlingMiddleware> logger)
+        ILogger<ExceptionHandlingMiddleware> logger,
+        IHostEnvironment environment)
     {
         _next = next;
         _logger = logger;
+        _environment = environment;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -25,54 +28,68 @@ public class ExceptionHandlingMiddleware
         catch (ValidationException ex)
         {
             _logger.LogWarning(ex, "Validation error");
-
-            await WriteResponseAsync(
-                context,
-                StatusCodes.Status400BadRequest,
-                ex.Message);
+            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, ex.Message);
+        }
+        catch (BadHttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "Bad HTTP request");
+            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, "Некорректный HTTP-запрос");
         }
         catch (NotFoundException ex)
         {
             _logger.LogWarning(ex, "Resource not found");
-
-            await WriteResponseAsync(
-                context,
-                StatusCodes.Status404NotFound,
-                ex.Message);
+            await WriteErrorAsync(context, StatusCodes.Status404NotFound, ex.Message);
         }
         catch (ConflictException ex)
         {
             _logger.LogWarning(ex, "Conflict error");
-
-            await WriteResponseAsync(
-                context,
-                StatusCodes.Status409Conflict,
-                ex.Message);
+            await WriteErrorAsync(context, StatusCodes.Status409Conflict, ex.Message);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized");
+            await WriteErrorAsync(context, StatusCodes.Status401Unauthorized, ex.Message);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception");
 
-            await WriteResponseAsync(
+            var message = _environment.IsDevelopment()
+                ? ex.Message
+                : "Internal server error";
+
+            await WriteErrorAsync(
                 context,
                 StatusCodes.Status500InternalServerError,
-                "Internal server error");
+                message);
         }
     }
 
-    private static async Task WriteResponseAsync(
+    private static async Task WriteErrorAsync(
         HttpContext context,
         int statusCode,
         string message)
     {
+        if (context.Response.HasStarted)
+            return;
+
+        context.Response.Clear();
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/json";
 
-        var response = new
+        var response = new ApiErrorResponse
         {
-            message
+            StatusCode = statusCode,
+            Message = message,
+            Path = context.Request.Path,
+            TraceId = context.TraceIdentifier
         };
 
-        await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+        var json = JsonSerializer.Serialize(response, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        await context.Response.WriteAsync(json);
     }
 }

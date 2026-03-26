@@ -26,6 +26,14 @@ public class BookingController : ControllerBase
             booking);
     }
 
+    [HttpGet("user/{userId:int}")]
+    public async Task<IActionResult> GetByUser(int userId)
+    {
+        var bookings = await _service.GetByUserAsync(userId);
+        return Ok(bookings);
+    }
+
+
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Get(int id)
     {
