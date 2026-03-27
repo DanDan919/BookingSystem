@@ -2,6 +2,7 @@ using Booking.Application.DTO;
 using Booking.Application.Exceptions;
 using Booking.Application.Interfaces;
 using Booking.Domain.Entities;
+using Booking.Domain.Exceptions;
 using Booking.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -34,7 +35,8 @@ public class BookingService : IBookingService
             throw new NotFoundException("Комната не существует");
 
         var conflict = await _db.Bookings
-            .AnyAsync(b => b.RoomId == dto.RoomId &&
+            .AnyAsync(b => !b.IsCancelled &&
+                           b.RoomId == dto.RoomId &&
                            b.Intersects(dto.DateFrom, dto.DateTo));
 
         if (conflict)
@@ -77,6 +79,32 @@ public class BookingService : IBookingService
             .ToListAsync();
 
         return bookings.Select(MapToDto).ToList();
+    }
+
+    public async Task CancelAsync(int bookingId)
+    {
+        if (bookingId <= 0)
+            throw new ValidationException("BookingId должен быть больше нуля");
+
+        var booking = await _db.Bookings
+            .FirstOrDefaultAsync(b => b.Id == bookingId);
+
+        if (booking == null)
+            throw new NotFoundException("Бронь не найдена");
+
+        if (booking.IsCancelled)
+            throw new ConflictException("Бронь уже отменена");
+
+        try
+        {
+            booking.Cancel();
+        }
+        catch (DomainException ex)
+        {
+            throw new ConflictException(ex.Message);
+        }
+
+        await _db.SaveChangesAsync();
     }
 
     private static BookingDto MapToDto(BookingEntity booking)

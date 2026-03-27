@@ -33,6 +33,12 @@ public class BookingController : ControllerBase
         return Ok(bookings);
     }
 
+    [HttpPatch("{id:int}/cancel")]
+    public async Task<IActionResult> Cancel(int id)
+    {
+        await _service.CancelAsync(id);
+        return NoContent();
+    }
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Get(int id)

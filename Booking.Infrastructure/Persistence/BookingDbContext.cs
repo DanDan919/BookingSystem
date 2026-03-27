@@ -47,8 +47,10 @@ public class BookingDbContext : DbContext
                   .IsRequired();
 
             entity.Property(b => b.UserId)
-                  .IsRequired()
-                  .HasMaxLength(100);
+                  .IsRequired();
+
+            entity.Property(b => b.IsCancelled)
+                  .IsRequired();
 
             // FK → Room
             entity.HasOne<Room>()
