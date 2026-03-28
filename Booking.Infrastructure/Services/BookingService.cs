@@ -115,7 +115,8 @@ public class BookingService : IBookingService
             RoomId = booking.RoomId,
             UserId = booking.UserId,
             DateFrom = booking.DateFrom,
-            DateTo = booking.DateTo
+            DateTo = booking.DateTo,
+            IsCancelled = booking.IsCancelled
         };
     }
 }
