@@ -1,7 +1,7 @@
 using Booking.Application.DTO;
+using Booking.Application.Exceptions;
 using Booking.Application.Interfaces;
 using Booking.Domain.Entities;
-using Booking.Application.Exceptions;
 using Booking.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -58,12 +58,12 @@ public class RoomService : IRoomService
         _logger.LogInformation("DeleteRoomAsync | RoomId={RoomId}", roomId);
 
         var room = await _dbContext.Rooms
-       .FirstOrDefaultAsync(r => r.Id == roomId && !r.IsDeleted);
+            .FirstOrDefaultAsync(r => r.Id == roomId && !r.IsDeleted);
 
         if (room == null)
         {
             _logger.LogWarning("Комната не найдена | RoomId={RoomId}", roomId);
-            throw new InvalidOperationException($"Комната {roomId} не найдена");
+            throw new NotFoundException($"Комната {roomId} не найдена");
         }
 
         room.Delete();
@@ -84,6 +84,46 @@ public class RoomService : IRoomService
         return rooms.Select(MapToDto).ToList();
     }
 
+    public async Task<List<RoomDto>> GetFilteredAsync(RoomFilterDto filter)
+    {
+        _logger.LogInformation(
+            "GetFilteredAsync | Class={Class}, MinPrice={MinPrice}, MaxPrice={MaxPrice}, SortBy={SortBy}",
+            filter.Class,
+            filter.MinPrice,
+            filter.MaxPrice,
+            filter.SortBy);
+
+        var query = _dbContext.Rooms
+            .AsNoTracking()
+            .Where(r => !r.IsDeleted)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(filter.Class))
+        {
+            query = query.Where(r => r.Class == filter.Class);
+        }
+
+        if (filter.MinPrice.HasValue)
+        {
+            query = query.Where(r => r.PricePerDay >= filter.MinPrice.Value);
+        }
+
+        if (filter.MaxPrice.HasValue)
+        {
+            query = query.Where(r => r.PricePerDay <= filter.MaxPrice.Value);
+        }
+
+        query = filter.SortBy switch
+        {
+            "priceAsc" => query.OrderBy(r => r.PricePerDay),
+            "priceDesc" => query.OrderByDescending(r => r.PricePerDay),
+            _ => query.OrderBy(r => r.Id)
+        };
+
+        var rooms = await query.ToListAsync();
+        return rooms.Select(MapToDto).ToList();
+    }
+
     public async Task<RoomDto> UpdateRoomAsync(int roomId, UpdateRoomDto dto)
     {
         _logger.LogInformation(
@@ -92,13 +132,22 @@ public class RoomService : IRoomService
             dto.Class,
             dto.PricePerDay);
 
+        if (string.IsNullOrWhiteSpace(dto.Class))
+            throw new ValidationException("Класс комнаты обязателен");
+
+        if (string.IsNullOrWhiteSpace(dto.Description))
+            throw new ValidationException("Описание комнаты обязательно");
+
+        if (dto.PricePerDay <= 0)
+            throw new ValidationException("Цена комнаты должна быть больше нуля");
+
         var room = await _dbContext.Rooms
             .FirstOrDefaultAsync(r => r.Id == roomId && !r.IsDeleted);
 
         if (room == null)
         {
             _logger.LogWarning("Комната не найдена | RoomId={RoomId}", roomId);
-            throw new InvalidOperationException($"Комната {roomId} не найдена");
+            throw new NotFoundException($"Комната {roomId} не найдена");
         }
 
         room.Update(dto.Class, dto.PricePerDay, dto.Description);

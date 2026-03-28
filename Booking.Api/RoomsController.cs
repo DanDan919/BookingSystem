@@ -1,9 +1,6 @@
 using Booking.Application.DTO;
 using Booking.Application.Interfaces;
-using Booking.Domain.Entities;
-using Booking.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Booking.Api.Controllers;
 
@@ -19,9 +16,9 @@ public class RoomsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] RoomFilterDto filter)
     {
-        var rooms = await _roomService.GetAllAsync();
+        var rooms = await _roomService.GetFilteredAsync(filter);
         return Ok(rooms);
     }
 
@@ -36,13 +33,6 @@ public class RoomsController : ControllerBase
         return Ok(room);
     }
 
-    [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, [FromBody] UpdateRoomDto request)
-    {
-        var updatedRoom = await _roomService.UpdateRoomAsync(id, request);
-        return Ok(updatedRoom);
-    }
-
     [HttpPost]
     public async Task<IActionResult> Create(CreateRoomDto request)
     {
@@ -52,6 +42,13 @@ public class RoomsController : ControllerBase
             nameof(GetById),
             new { id = createdRoom.Id },
             createdRoom);
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateRoomDto request)
+    {
+        var updatedRoom = await _roomService.UpdateRoomAsync(id, request);
+        return Ok(updatedRoom);
     }
 
     [HttpDelete("{id:int}")]
