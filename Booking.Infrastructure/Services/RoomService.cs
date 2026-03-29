@@ -84,14 +84,22 @@ public class RoomService : IRoomService
         return rooms.Select(MapToDto).ToList();
     }
 
-    public async Task<List<RoomDto>> GetFilteredAsync(RoomFilterDto filter)
+    public async Task<PagedResultDto<RoomDto>> GetFilteredAsync(RoomFilterDto filter)
     {
         _logger.LogInformation(
-            "GetFilteredAsync | Class={Class}, MinPrice={MinPrice}, MaxPrice={MaxPrice}, SortBy={SortBy}",
+            "GetFilteredAsync | Class={Class}, MinPrice={MinPrice}, MaxPrice={MaxPrice}, SortBy={SortBy}, Page={Page}, PageSize={PageSize}",
             filter.Class,
             filter.MinPrice,
             filter.MaxPrice,
-            filter.SortBy);
+            filter.SortBy,
+            filter.Page,
+            filter.PageSize);
+
+        if (filter.Page <= 0)
+            throw new ValidationException("Page должен быть больше нуля");
+
+        if (filter.PageSize <= 0)
+            throw new ValidationException("PageSize должен быть больше нуля");
 
         var query = _dbContext.Rooms
             .AsNoTracking()
@@ -120,8 +128,20 @@ public class RoomService : IRoomService
             _ => query.OrderBy(r => r.Id)
         };
 
-        var rooms = await query.ToListAsync();
-        return rooms.Select(MapToDto).ToList();
+        var totalCount = await query.CountAsync();
+
+        var rooms = await query
+            .Skip((filter.Page - 1) * filter.PageSize)
+            .Take(filter.PageSize)
+            .ToListAsync();
+
+        return new PagedResultDto<RoomDto>
+        {
+            Items = rooms.Select(MapToDto).ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
     }
 
     public async Task<RoomDto> UpdateRoomAsync(int roomId, UpdateRoomDto dto)

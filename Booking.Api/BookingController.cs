@@ -27,9 +27,9 @@ public class BookingController : ControllerBase
     }
 
     [HttpGet("user/{userId:int}")]
-    public async Task<IActionResult> GetByUser(int userId)
+    public async Task<IActionResult> GetByUser(int userId, [FromQuery] PagingDto paging)
     {
-        var bookings = await _service.GetByUserAsync(userId);
+        var bookings = await _service.GetByUserAsync(userId, paging);
         return Ok(bookings);
     }
 

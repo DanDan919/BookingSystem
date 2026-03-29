@@ -6,6 +6,6 @@ public interface IBookingService
 {
     Task<BookingDto> CreateAsync(CreateBookingDto dto);
     Task<BookingDto?> GetByIdAsync(int bookingId);
-    Task<List<BookingDto>> GetByUserAsync(int userId);
+    Task<PagedResultDto<BookingDto>> GetByUserAsync(int userId, PagingDto paging);
     Task CancelAsync(int bookingId);
 }

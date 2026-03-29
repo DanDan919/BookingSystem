@@ -67,20 +67,37 @@ public class BookingService : IBookingService
         return booking == null ? null : MapToDto(booking);
     }
 
-    public async Task<List<BookingDto>> GetByUserAsync(int userId)
+    public async Task<PagedResultDto<BookingDto>> GetByUserAsync(int userId, PagingDto paging)
     {
         if (userId <= 0)
             throw new ValidationException("UserId должен быть больше нуля");
 
-        var bookings = await _db.Bookings
+        if (paging.Page <= 0)
+            throw new ValidationException("Page должен быть больше нуля");
+
+        if (paging.PageSize <= 0)
+            throw new ValidationException("PageSize должен быть больше нуля");
+
+        var query = _db.Bookings
             .AsNoTracking()
             .Where(b => b.UserId == userId)
-            .OrderBy(b => b.DateFrom)
+            .OrderBy(b => b.DateFrom);
+
+        var totalCount = await query.CountAsync();
+
+        var bookings = await query
+            .Skip((paging.Page - 1) * paging.PageSize)
+            .Take(paging.PageSize)
             .ToListAsync();
 
-        return bookings.Select(MapToDto).ToList();
+        return new PagedResultDto<BookingDto>
+        {
+            Items = bookings.Select(MapToDto).ToList(),
+            TotalCount = totalCount,
+            Page = paging.Page,
+            PageSize = paging.PageSize
+        };
     }
-
     public async Task CancelAsync(int bookingId)
     {
         if (bookingId <= 0)
