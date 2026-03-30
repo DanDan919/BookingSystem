@@ -28,11 +28,15 @@ public class BookingService : IBookingService
         if (dto.DateFrom >= dto.DateTo)
             throw new ValidationException("Дата начала должна быть раньше даты окончания");
 
-        var roomExists = await _db.Rooms
-            .AnyAsync(r => r.Id == dto.RoomId && !r.IsDeleted);
+        var room = await _db.Rooms
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == dto.RoomId && !r.IsDeleted);
 
-        if (!roomExists)
+        if (room == null)
             throw new NotFoundException("Комната не существует");
+
+        if (room.Status != RoomStatus.Available)
+            throw new ConflictException("Комната недоступна для бронирования");
 
         var conflict = await _db.Bookings
             .AnyAsync(b => !b.IsCancelled &&
@@ -98,6 +102,7 @@ public class BookingService : IBookingService
             PageSize = paging.PageSize
         };
     }
+
     public async Task CancelAsync(int bookingId)
     {
         if (bookingId <= 0)

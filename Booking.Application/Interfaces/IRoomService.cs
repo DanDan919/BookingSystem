@@ -10,4 +10,5 @@ public interface IRoomService
     Task<RoomDto?> GetByIdAsync(int roomId);
     Task<RoomDto> UpdateRoomAsync(int roomId, UpdateRoomDto dto);
     Task<PagedResultDto<RoomDto>> GetFilteredAsync(RoomFilterDto filter);
+    Task<RoomDto> UpdateStatusAsync(int roomId, UpdateRoomStatusDto dto);
 }

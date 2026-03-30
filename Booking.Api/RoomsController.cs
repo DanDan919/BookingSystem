@@ -33,6 +33,13 @@ public class RoomsController : ControllerBase
         return Ok(room);
     }
 
+    [HttpPatch("{id:int}/status")]
+    public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateRoomStatusDto request)
+    {
+        var updatedRoom = await _roomService.UpdateStatusAsync(id, request);
+        return Ok(updatedRoom);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create(CreateRoomDto request)
     {

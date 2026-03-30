@@ -190,6 +190,42 @@ public class RoomService : IRoomService
         return room == null ? null : MapToDto(room);
     }
 
+
+    public async Task<RoomDto> UpdateStatusAsync(int roomId, UpdateRoomStatusDto dto)
+    {
+        _logger.LogInformation(
+            "UpdateStatusAsync | RoomId={RoomId}, Status={Status}",
+            roomId,
+            dto.Status);
+
+        if (string.IsNullOrWhiteSpace(dto.Status))
+            throw new ValidationException("Статус комнаты обязателен");
+
+        if (!Enum.TryParse<RoomStatus>(dto.Status, true, out var parsedStatus))
+            throw new ValidationException("Некорректный статус комнаты");
+
+        var room = await _dbContext.Rooms
+            .FirstOrDefaultAsync(r => r.Id == roomId && !r.IsDeleted);
+
+        if (room == null)
+        {
+            _logger.LogWarning("Комната не найдена | RoomId={RoomId}", roomId);
+            throw new NotFoundException($"Комната {roomId} не найдена");
+        }
+
+        room.ChangeStatus(parsedStatus);
+
+        await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Статус комнаты обновлён | RoomId={RoomId}, Status={Status}",
+            roomId,
+            parsedStatus);
+
+        return MapToDto(room);
+    }
+
+
     private static RoomDto MapToDto(Room room)
     {
         return new RoomDto
@@ -197,7 +233,8 @@ public class RoomService : IRoomService
             Id = room.Id,
             Class = room.Class,
             Description = room.Description,
-            PricePerDay = room.PricePerDay
+            PricePerDay = room.PricePerDay,
+            Status = room.Status.ToString()
         };
     }
 }

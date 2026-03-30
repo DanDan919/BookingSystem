@@ -33,6 +33,9 @@ public class BookingDbContext : DbContext
 
             entity.Property(r => r.IsDeleted)
                   .IsRequired();
+
+            entity.Property(r => r.Status)
+                  .IsRequired();
         });
 
         // ---------- Booking ----------
