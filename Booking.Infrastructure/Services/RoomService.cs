@@ -30,14 +30,7 @@ public class RoomService : IRoomService
             dto.Class,
             dto.PricePerDay);
 
-        if (string.IsNullOrWhiteSpace(dto.Class))
-            throw new ValidationException("Класс комнаты обязателен");
-
-        if (string.IsNullOrWhiteSpace(dto.Description))
-            throw new ValidationException("Описание комнаты обязательно");
-
-        if (dto.PricePerDay <= 0)
-            throw new ValidationException("Цена комнаты должна быть больше нуля");
+        ValidateRoom(dto.Class, dto.Description, dto.PricePerDay);
 
         var room = new Room(
             dto.Class,
@@ -70,6 +63,27 @@ public class RoomService : IRoomService
         await _dbContext.SaveChangesAsync();
 
         _logger.LogInformation("Комната удалена | RoomId={RoomId}", roomId);
+    }
+
+    public async Task<RoomDto> RestoreAsync(int roomId)
+    {
+        _logger.LogInformation("RestoreAsync | RoomId={RoomId}", roomId);
+
+        var room = await _dbContext.Rooms
+            .FirstOrDefaultAsync(r => r.Id == roomId && r.IsDeleted);
+
+        if (room == null)
+        {
+            _logger.LogWarning("Удалённая комната не найдена | RoomId={RoomId}", roomId);
+            throw new NotFoundException($"Удалённая комната {roomId} не найдена");
+        }
+
+        room.Restore();
+        await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("Комната восстановлена | RoomId={RoomId}", roomId);
+
+        return MapToDto(room);
     }
 
     public async Task<List<RoomDto>> GetAllAsync()
@@ -144,6 +158,38 @@ public class RoomService : IRoomService
         };
     }
 
+    public async Task<List<RoomDto>> GetByStatusAsync(string status)
+    {
+        _logger.LogInformation("GetByStatusAsync | Status={Status}", status);
+
+        if (string.IsNullOrWhiteSpace(status))
+            throw new ValidationException("Статус комнаты обязателен");
+
+        if (!Enum.TryParse<RoomStatus>(status, true, out var parsedStatus))
+            throw new ValidationException("Некорректный статус комнаты");
+
+        var rooms = await _dbContext.Rooms
+            .AsNoTracking()
+            .Where(r => !r.IsDeleted && r.Status == parsedStatus)
+            .OrderBy(r => r.Id)
+            .ToListAsync();
+
+        return rooms.Select(MapToDto).ToList();
+    }
+
+    public async Task<List<RoomDto>> GetDeletedAsync()
+    {
+        _logger.LogInformation("GetDeletedAsync");
+
+        var rooms = await _dbContext.Rooms
+            .AsNoTracking()
+            .Where(r => r.IsDeleted)
+            .OrderBy(r => r.Id)
+            .ToListAsync();
+
+        return rooms.Select(MapToDto).ToList();
+    }
+
     public async Task<RoomDto> UpdateRoomAsync(int roomId, UpdateRoomDto dto)
     {
         _logger.LogInformation(
@@ -152,14 +198,7 @@ public class RoomService : IRoomService
             dto.Class,
             dto.PricePerDay);
 
-        if (string.IsNullOrWhiteSpace(dto.Class))
-            throw new ValidationException("Класс комнаты обязателен");
-
-        if (string.IsNullOrWhiteSpace(dto.Description))
-            throw new ValidationException("Описание комнаты обязательно");
-
-        if (dto.PricePerDay <= 0)
-            throw new ValidationException("Цена комнаты должна быть больше нуля");
+        ValidateRoom(dto.Class, dto.Description, dto.PricePerDay);
 
         var room = await _dbContext.Rooms
             .FirstOrDefaultAsync(r => r.Id == roomId && !r.IsDeleted);
@@ -189,7 +228,6 @@ public class RoomService : IRoomService
 
         return room == null ? null : MapToDto(room);
     }
-
 
     public async Task<RoomDto> UpdateStatusAsync(int roomId, UpdateRoomStatusDto dto)
     {
@@ -225,6 +263,17 @@ public class RoomService : IRoomService
         return MapToDto(room);
     }
 
+    private static void ValidateRoom(string roomClass, string description, decimal pricePerDay)
+    {
+        if (string.IsNullOrWhiteSpace(roomClass))
+            throw new ValidationException("Класс комнаты обязателен");
+
+        if (string.IsNullOrWhiteSpace(description))
+            throw new ValidationException("Описание комнаты обязательно");
+
+        if (pricePerDay <= 0)
+            throw new ValidationException("Цена комнаты должна быть больше нуля");
+    }
 
     private static RoomDto MapToDto(Room room)
     {

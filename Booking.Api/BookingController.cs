@@ -26,20 +26,6 @@ public class BookingController : ControllerBase
             booking);
     }
 
-    [HttpGet("user/{userId:int}")]
-    public async Task<IActionResult> GetByUser(int userId, [FromQuery] PagingDto paging)
-    {
-        var bookings = await _service.GetByUserAsync(userId, paging);
-        return Ok(bookings);
-    }
-
-    [HttpPatch("{id:int}/cancel")]
-    public async Task<IActionResult> Cancel(int id)
-    {
-        await _service.CancelAsync(id);
-        return NoContent();
-    }
-
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Get(int id)
     {
@@ -49,5 +35,40 @@ public class BookingController : ControllerBase
             return NotFound();
 
         return Ok(booking);
+    }
+
+    [HttpGet("user/{userId:int}")]
+    public async Task<IActionResult> GetByUser(int userId, [FromQuery] PagingDto paging)
+    {
+        var bookings = await _service.GetByUserAsync(userId, paging);
+        return Ok(bookings);
+    }
+
+    [HttpGet("user/{userId:int}/active")]
+    public async Task<IActionResult> GetActiveByUser(int userId, [FromQuery] PagingDto paging)
+    {
+        var bookings = await _service.GetActiveByUserAsync(userId, paging);
+        return Ok(bookings);
+    }
+
+    [HttpGet("user/{userId:int}/cancelled")]
+    public async Task<IActionResult> GetCancelledByUser(int userId, [FromQuery] PagingDto paging)
+    {
+        var bookings = await _service.GetCancelledByUserAsync(userId, paging);
+        return Ok(bookings);
+    }
+
+    [HttpGet("room/{roomId:int}")]
+    public async Task<IActionResult> GetByRoom(int roomId, [FromQuery] PagingDto paging)
+    {
+        var bookings = await _service.GetByRoomAsync(roomId, paging);
+        return Ok(bookings);
+    }
+
+    [HttpPatch("{id:int}/cancel")]
+    public async Task<IActionResult> Cancel(int id)
+    {
+        await _service.CancelAsync(id);
+        return NoContent();
     }
 }

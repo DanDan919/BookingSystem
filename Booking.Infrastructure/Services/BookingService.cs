@@ -73,18 +73,36 @@ public class BookingService : IBookingService
 
     public async Task<PagedResultDto<BookingDto>> GetByUserAsync(int userId, PagingDto paging)
     {
-        if (userId <= 0)
-            throw new ValidationException("UserId должен быть больше нуля");
+        return await GetByUserInternalAsync(userId, paging, null);
+    }
 
-        if (paging.Page <= 0)
-            throw new ValidationException("Page должен быть больше нуля");
+    public async Task<PagedResultDto<BookingDto>> GetActiveByUserAsync(int userId, PagingDto paging)
+    {
+        return await GetByUserInternalAsync(userId, paging, false);
+    }
 
-        if (paging.PageSize <= 0)
-            throw new ValidationException("PageSize должен быть больше нуля");
+    public async Task<PagedResultDto<BookingDto>> GetCancelledByUserAsync(int userId, PagingDto paging)
+    {
+        return await GetByUserInternalAsync(userId, paging, true);
+    }
+
+    public async Task<PagedResultDto<BookingDto>> GetByRoomAsync(int roomId, PagingDto paging)
+    {
+        if (roomId <= 0)
+            throw new ValidationException("RoomId должен быть больше нуля");
+
+        ValidatePaging(paging);
+
+        var roomExists = await _db.Rooms
+            .AsNoTracking()
+            .AnyAsync(r => r.Id == roomId);
+
+        if (!roomExists)
+            throw new NotFoundException("Комната не найдена");
 
         var query = _db.Bookings
             .AsNoTracking()
-            .Where(b => b.UserId == userId)
+            .Where(b => b.RoomId == roomId)
             .OrderBy(b => b.DateFrom);
 
         var totalCount = await query.CountAsync();
@@ -127,6 +145,49 @@ public class BookingService : IBookingService
         }
 
         await _db.SaveChangesAsync();
+    }
+
+    private async Task<PagedResultDto<BookingDto>> GetByUserInternalAsync(int userId, PagingDto paging, bool? isCancelled)
+    {
+        if (userId <= 0)
+            throw new ValidationException("UserId должен быть больше нуля");
+
+        ValidatePaging(paging);
+
+        var query = _db.Bookings
+            .AsNoTracking()
+            .Where(b => b.UserId == userId);
+
+        if (isCancelled.HasValue)
+        {
+            query = query.Where(b => b.IsCancelled == isCancelled.Value);
+        }
+
+        query = query.OrderBy(b => b.DateFrom);
+
+        var totalCount = await query.CountAsync();
+
+        var bookings = await query
+            .Skip((paging.Page - 1) * paging.PageSize)
+            .Take(paging.PageSize)
+            .ToListAsync();
+
+        return new PagedResultDto<BookingDto>
+        {
+            Items = bookings.Select(MapToDto).ToList(),
+            TotalCount = totalCount,
+            Page = paging.Page,
+            PageSize = paging.PageSize
+        };
+    }
+
+    private static void ValidatePaging(PagingDto paging)
+    {
+        if (paging.Page <= 0)
+            throw new ValidationException("Page должен быть больше нуля");
+
+        if (paging.PageSize <= 0)
+            throw new ValidationException("PageSize должен быть больше нуля");
     }
 
     private static BookingDto MapToDto(BookingEntity booking)

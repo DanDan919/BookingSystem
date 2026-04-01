@@ -33,11 +33,18 @@ public class RoomsController : ControllerBase
         return Ok(room);
     }
 
-    [HttpPatch("{id:int}/status")]
-    public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateRoomStatusDto request)
+    [HttpGet("status/{status}")]
+    public async Task<IActionResult> GetByStatus(string status)
     {
-        var updatedRoom = await _roomService.UpdateStatusAsync(id, request);
-        return Ok(updatedRoom);
+        var rooms = await _roomService.GetByStatusAsync(status);
+        return Ok(rooms);
+    }
+
+    [HttpGet("deleted")]
+    public async Task<IActionResult> GetDeleted()
+    {
+        var rooms = await _roomService.GetDeletedAsync();
+        return Ok(rooms);
     }
 
     [HttpPost]
@@ -56,6 +63,20 @@ public class RoomsController : ControllerBase
     {
         var updatedRoom = await _roomService.UpdateRoomAsync(id, request);
         return Ok(updatedRoom);
+    }
+
+    [HttpPatch("{id:int}/status")]
+    public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateRoomStatusDto request)
+    {
+        var updatedRoom = await _roomService.UpdateStatusAsync(id, request);
+        return Ok(updatedRoom);
+    }
+
+    [HttpPatch("{id:int}/restore")]
+    public async Task<IActionResult> Restore(int id)
+    {
+        var restoredRoom = await _roomService.RestoreAsync(id);
+        return Ok(restoredRoom);
     }
 
     [HttpDelete("{id:int}")]

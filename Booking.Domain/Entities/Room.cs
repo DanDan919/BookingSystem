@@ -25,6 +25,11 @@ public class Room
         IsDeleted = true;
     }
 
+    public void Restore()
+    {
+        IsDeleted = false;
+    }
+
     public void Update(string roomClass, decimal pricePerDay, string description)
     {
         if (IsDeleted)
