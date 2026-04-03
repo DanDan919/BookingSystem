@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿namespace Booking.Application.DTO;
 
-namespace Booking.Application.DTO
+public class BookingCalendarItemDto
 {
-    internal class BookingCalendarItemDto
-    {
-    }
+    public DateTime DateFrom { get; set; }
+    public DateTime DateTo { get; set; }
 }

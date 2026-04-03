@@ -58,6 +58,20 @@ public class BookingController : ControllerBase
         return Ok(bookings);
     }
 
+    [HttpPost("check-availability")]
+    public async Task<IActionResult> CheckAvailability([FromBody] CheckAvailabilityDto dto)
+    {
+        var result = await _service.CheckAvailabilityAsync(dto);
+        return Ok(result);
+    }
+
+    [HttpGet("room/{roomId:int}/calendar")]
+    public async Task<IActionResult> GetRoomCalendar(int roomId)
+    {
+        var result = await _service.GetRoomCalendarAsync(roomId);
+        return Ok(result);
+    }
+
     [HttpGet("room/{roomId:int}")]
     public async Task<IActionResult> GetByRoom(int roomId, [FromQuery] PagingDto paging)
     {

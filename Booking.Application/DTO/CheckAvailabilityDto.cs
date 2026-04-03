@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿namespace Booking.Application.DTO;
 
-namespace Booking.Application.DTO
+public class CheckAvailabilityDto
 {
-    internal class CheckAvailabilityDto
-    {
-    }
+    public int RoomId { get; set; }
+    public DateTime DateFrom { get; set; }
+    public DateTime DateTo { get; set; }
 }

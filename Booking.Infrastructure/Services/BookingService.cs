@@ -59,6 +59,74 @@ public class BookingService : IBookingService
         return MapToDto(booking);
     }
 
+    public async Task<AvailabilityResultDto> CheckAvailabilityAsync(CheckAvailabilityDto dto)
+    {
+        if (dto.RoomId <= 0)
+            throw new ValidationException("RoomId должен быть больше нуля");
+
+        if (dto.DateFrom >= dto.DateTo)
+            throw new ValidationException("Дата начала должна быть раньше даты окончания");
+
+        var room = await _db.Rooms
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == dto.RoomId && !r.IsDeleted);
+
+        if (room == null)
+            throw new NotFoundException("Комната не существует");
+
+        if (room.Status != RoomStatus.Available)
+        {
+            return new AvailabilityResultDto
+            {
+                RoomId = dto.RoomId,
+                IsAvailable = false,
+                Message = "Комната недоступна для бронирования"
+            };
+        }
+
+        var conflict = await _db.Bookings
+            .AsNoTracking()
+            .AnyAsync(b => !b.IsCancelled &&
+                           b.RoomId == dto.RoomId &&
+                           b.Intersects(dto.DateFrom, dto.DateTo));
+
+        return new AvailabilityResultDto
+        {
+            RoomId = dto.RoomId,
+            IsAvailable = !conflict,
+            Message = conflict
+                ? "Комната занята на выбранные даты"
+                : "Комната доступна"
+        };
+    }
+
+    public async Task<List<BookingCalendarItemDto>> GetRoomCalendarAsync(int roomId)
+    {
+        if (roomId <= 0)
+            throw new ValidationException("RoomId должен быть больше нуля");
+
+        var roomExists = await _db.Rooms
+            .AsNoTracking()
+            .AnyAsync(r => r.Id == roomId);
+
+        if (!roomExists)
+            throw new NotFoundException("Комната не найдена");
+
+        var bookings = await _db.Bookings
+            .AsNoTracking()
+            .Where(b => b.RoomId == roomId && !b.IsCancelled)
+            .OrderBy(b => b.DateFrom)
+            .Select(b => new BookingCalendarItemDto
+            {
+                DateFrom = b.DateFrom,
+                DateTo = b.DateTo
+            })
+            .ToListAsync();
+
+        return bookings;
+    }
+
+
     public async Task<BookingDto?> GetByIdAsync(int bookingId)
     {
         if (bookingId <= 0)

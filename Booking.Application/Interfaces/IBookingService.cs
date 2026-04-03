@@ -10,5 +10,7 @@ public interface IBookingService
     Task<PagedResultDto<BookingDto>> GetActiveByUserAsync(int userId, PagingDto paging);
     Task<PagedResultDto<BookingDto>> GetCancelledByUserAsync(int userId, PagingDto paging);
     Task<PagedResultDto<BookingDto>> GetByRoomAsync(int roomId, PagingDto paging);
+    Task<AvailabilityResultDto> CheckAvailabilityAsync(CheckAvailabilityDto dto);
+    Task<List<BookingCalendarItemDto>> GetRoomCalendarAsync(int roomId);
     Task CancelAsync(int bookingId);
 }

@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿namespace Booking.Application.DTO;
 
-namespace Booking.Application.DTO
+public class AvailabilityResultDto
 {
-    internal class AvailabilityResultDto
-    {
-    }
+    public int RoomId { get; set; }
+    public bool IsAvailable { get; set; }
+    public string Message { get; set; } = string.Empty;
 }
