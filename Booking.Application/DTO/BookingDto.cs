@@ -8,4 +8,8 @@ public class BookingDto
     public DateTime DateFrom { get; set; }
     public DateTime DateTo { get; set; }
     public bool IsCancelled { get; set; }
+
+    public string? RoomClass { get; set; }
+    public string? RoomStatus { get; set; }
+    public decimal? RoomPricePerDay { get; set; }
 }
