@@ -58,11 +58,32 @@ public class BookingController : ControllerBase
         return Ok(bookings);
     }
 
-    [HttpPost("check-availability")]
-    public async Task<IActionResult> CheckAvailability([FromBody] CheckAvailabilityDto dto)
+    [HttpGet("room/{roomId:int}")]
+    public async Task<IActionResult> GetByRoom(int roomId, [FromQuery] PagingDto paging)
     {
-        var result = await _service.CheckAvailabilityAsync(dto);
-        return Ok(result);
+        var bookings = await _service.GetByRoomAsync(roomId, paging);
+        return Ok(bookings);
+    }
+
+    [HttpGet("active")]
+    public async Task<IActionResult> GetActive([FromQuery] PagingDto paging)
+    {
+        var bookings = await _service.GetActiveAsync(paging);
+        return Ok(bookings);
+    }
+
+    [HttpGet("cancelled")]
+    public async Task<IActionResult> GetCancelled([FromQuery] PagingDto paging)
+    {
+        var bookings = await _service.GetCancelledAsync(paging);
+        return Ok(bookings);
+    }
+
+    [HttpGet("by-date-range")]
+    public async Task<IActionResult> GetByDateRange([FromQuery] DateRangeQueryDto query)
+    {
+        var bookings = await _service.GetByDateRangeAsync(query);
+        return Ok(bookings);
     }
 
     [HttpGet("room/{roomId:int}/calendar")]
@@ -72,11 +93,11 @@ public class BookingController : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet("room/{roomId:int}")]
-    public async Task<IActionResult> GetByRoom(int roomId, [FromQuery] PagingDto paging)
+    [HttpPost("check-availability")]
+    public async Task<IActionResult> CheckAvailability([FromBody] CheckAvailabilityDto dto)
     {
-        var bookings = await _service.GetByRoomAsync(roomId, paging);
-        return Ok(bookings);
+        var result = await _service.CheckAvailabilityAsync(dto);
+        return Ok(result);
     }
 
     [HttpPatch("{id:int}/cancel")]

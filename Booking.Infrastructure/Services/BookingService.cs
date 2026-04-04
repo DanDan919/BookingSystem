@@ -112,20 +112,51 @@ public class BookingService : IBookingService
             .Where(b => b.RoomId == roomId)
             .OrderBy(b => b.DateFrom);
 
-        var totalCount = await query.CountAsync();
+        return await ToPagedResultAsync(query, paging);
+    }
 
-        var bookings = await query
-            .Skip((paging.Page - 1) * paging.PageSize)
-            .Take(paging.PageSize)
-            .ToListAsync();
+    public async Task<PagedResultDto<BookingDto>> GetActiveAsync(PagingDto paging)
+    {
+        ValidatePaging(paging);
 
-        return new PagedResultDto<BookingDto>
+        var query = BookingQuery()
+            .Where(b => !b.IsCancelled)
+            .OrderBy(b => b.DateFrom);
+
+        return await ToPagedResultAsync(query, paging);
+    }
+
+    public async Task<PagedResultDto<BookingDto>> GetCancelledAsync(PagingDto paging)
+    {
+        ValidatePaging(paging);
+
+        var query = BookingQuery()
+            .Where(b => b.IsCancelled)
+            .OrderByDescending(b => b.DateFrom);
+
+        return await ToPagedResultAsync(query, paging);
+    }
+
+    public async Task<PagedResultDto<BookingDto>> GetByDateRangeAsync(DateRangeQueryDto queryDto)
+    {
+        if (queryDto.DateFrom >= queryDto.DateTo)
+            throw new ValidationException("Дата начала должна быть раньше даты окончания");
+
+        ValidatePaging(new PagingDto
         {
-            Items = bookings,
-            TotalCount = totalCount,
-            Page = paging.Page,
-            PageSize = paging.PageSize
-        };
+            Page = queryDto.Page,
+            PageSize = queryDto.PageSize
+        });
+
+        var query = BookingQuery()
+            .Where(b => b.DateFrom < queryDto.DateTo && b.DateTo > queryDto.DateFrom)
+            .OrderBy(b => b.DateFrom);
+
+        return await ToPagedResultAsync(query, new PagingDto
+        {
+            Page = queryDto.Page,
+            PageSize = queryDto.PageSize
+        });
     }
 
     public async Task<AvailabilityResultDto> CheckAvailabilityAsync(CheckAvailabilityDto dto)
@@ -230,26 +261,11 @@ public class BookingService : IBookingService
             .Where(b => b.UserId == userId);
 
         if (isCancelled.HasValue)
-        {
             query = query.Where(b => b.IsCancelled == isCancelled.Value);
-        }
 
         query = query.OrderBy(b => b.DateFrom);
 
-        var totalCount = await query.CountAsync();
-
-        var bookings = await query
-            .Skip((paging.Page - 1) * paging.PageSize)
-            .Take(paging.PageSize)
-            .ToListAsync();
-
-        return new PagedResultDto<BookingDto>
-        {
-            Items = bookings,
-            TotalCount = totalCount,
-            Page = paging.Page,
-            PageSize = paging.PageSize
-        };
+        return await ToPagedResultAsync(query, paging);
     }
 
     private IQueryable<BookingDto> BookingQuery()
@@ -270,6 +286,26 @@ public class BookingService : IBookingService
                    RoomStatus = r != null ? r.Status.ToString() : null,
                    RoomPricePerDay = r != null ? r.PricePerDay : null
                };
+    }
+
+    private static async Task<PagedResultDto<BookingDto>> ToPagedResultAsync(
+        IQueryable<BookingDto> query,
+        PagingDto paging)
+    {
+        var totalCount = await query.CountAsync();
+
+        var items = await query
+            .Skip((paging.Page - 1) * paging.PageSize)
+            .Take(paging.PageSize)
+            .ToListAsync();
+
+        return new PagedResultDto<BookingDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = paging.Page,
+            PageSize = paging.PageSize
+        };
     }
 
     private static void ValidatePaging(PagingDto paging)
