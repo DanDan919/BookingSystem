@@ -16,6 +16,7 @@ public interface IBookingService
     Task<PagedResultDto<BookingDto>> GetActiveAsync(PagingDto paging);
     Task<PagedResultDto<BookingDto>> GetCancelledAsync(PagingDto paging);
     Task<PagedResultDto<BookingDto>> GetByDateRangeAsync(DateRangeQueryDto query);
+    Task<BookingDto> RescheduleAsync(int bookingId, RescheduleBookingDto dto);
 
     Task<AvailabilityResultDto> CheckAvailabilityAsync(CheckAvailabilityDto dto);
     Task<List<BookingCalendarItemDto>> GetRoomCalendarAsync(int roomId);

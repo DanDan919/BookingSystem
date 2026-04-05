@@ -86,6 +86,13 @@ public class BookingController : ControllerBase
         return Ok(bookings);
     }
 
+    [HttpPut("{id:int}/reschedule")]
+    public async Task<IActionResult> Reschedule(int id, [FromBody] RescheduleBookingDto dto)
+    {
+        var booking = await _service.RescheduleAsync(id, dto);
+        return Ok(booking);
+    }
+
     [HttpGet("room/{roomId:int}/calendar")]
     public async Task<IActionResult> GetRoomCalendar(int roomId)
     {

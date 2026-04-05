@@ -70,6 +70,79 @@ public class BookingService : IBookingService
         };
     }
 
+    public async Task<BookingDto> RescheduleAsync(int bookingId, RescheduleBookingDto dto)
+    {
+        if (bookingId <= 0)
+            throw new ValidationException("BookingId должен быть больше нуля");
+
+        if (dto.DateFrom >= dto.DateTo)
+            throw new ValidationException("Дата начала должна быть раньше даты окончания");
+
+        var booking = await _db.Bookings
+            .FirstOrDefaultAsync(b => b.Id == bookingId);
+
+        if (booking == null)
+            throw new NotFoundException("Бронь не найдена");
+
+        if (booking.IsCancelled)
+            throw new ConflictException("Нельзя перенести отменённую бронь");
+
+        var room = await _db.Rooms
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == booking.RoomId && !r.IsDeleted);
+
+        if (room == null)
+            throw new NotFoundException("Комната не существует");
+
+        if (room.Status != RoomStatus.Available)
+            throw new ConflictException("Комната недоступна для бронирования");
+
+        var conflict = await _db.Bookings
+            .AnyAsync(b =>
+                b.Id != bookingId &&
+                !b.IsCancelled &&
+                b.RoomId == booking.RoomId &&
+                b.Intersects(dto.DateFrom, dto.DateTo));
+
+        if (conflict)
+            throw new ConflictException("Комната уже занята на выбранные даты");
+
+        try
+        {
+            booking.Reschedule(dto.DateFrom, dto.DateTo);
+        }
+        catch (DomainException ex)
+        {
+            throw new ValidationException(ex.Message);
+        }
+
+        await _db.SaveChangesAsync();
+
+        var roomInfo = await _db.Rooms
+            .AsNoTracking()
+            .Where(r => r.Id == booking.RoomId)
+            .Select(r => new
+            {
+                r.Class,
+                Status = r.Status.ToString(),
+                r.PricePerDay
+            })
+            .FirstAsync();
+
+        return new BookingDto
+        {
+            Id = booking.Id,
+            RoomId = booking.RoomId,
+            UserId = booking.UserId,
+            DateFrom = booking.DateFrom,
+            DateTo = booking.DateTo,
+            IsCancelled = booking.IsCancelled,
+            RoomClass = roomInfo.Class,
+            RoomStatus = roomInfo.Status,
+            RoomPricePerDay = roomInfo.PricePerDay
+        };
+    }
+
     public async Task<BookingDto?> GetByIdAsync(int bookingId)
     {
         if (bookingId <= 0)

@@ -16,6 +16,18 @@ public class BookingEntity
 
     private BookingEntity() { } // EF
 
+    public void Reschedule(DateTime dateFrom, DateTime dateTo)
+    {
+        if (IsCancelled)
+            throw new DomainException("Нельзя перенести отменённую бронь");
+
+        if (dateFrom >= dateTo)
+            throw new DomainException("Дата начала должна быть меньше даты окончания");
+
+        DateFrom = dateFrom;
+        DateTo = dateTo;
+    }
+
     public BookingEntity(int roomId, int userId, DateTime dateFrom, DateTime dateTo)
     {
         if (dateFrom >= dateTo)
