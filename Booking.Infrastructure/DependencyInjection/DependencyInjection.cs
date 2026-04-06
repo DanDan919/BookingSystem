@@ -1,8 +1,11 @@
 using Booking.Application.Interfaces;
+using Booking.Infrastructure.Persistence.Repositories;
 using Booking.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Booking.Application.Interfaces;
+using Booking.Infrastructure.Persistence.Repositories;
 
 namespace Booking.Infrastructure.DependencyInjection;
 
@@ -23,7 +26,12 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString);
         });
 
+
+
         Console.WriteLine("[INFRA] Регистрация сервисов");
+
+        services.AddScoped<IRoomRepository, RoomRepository>();
+        services.AddScoped<IBookingRepository, BookingRepository>();
 
         services.AddScoped<IRoomService, RoomService>();
         Console.WriteLine("[INFRA] IRoomService -> RoomService");

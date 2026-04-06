@@ -1,8 +1,9 @@
+using Booking.Application.Interfaces;
+using Booking.Infrastructure.Persistence.Repositories;
 using Booking.Application.DTO;
 using Booking.Application.Exceptions;
 using Booking.Application.Interfaces;
 using Booking.Domain.Entities;
-using Booking.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -10,14 +11,17 @@ namespace Booking.Infrastructure.Services;
 
 public class RoomService : IRoomService
 {
-    private readonly BookingDbContext _dbContext;
+    private readonly IRoomRepository _roomRepository;
+    private readonly IBookingRepository _bookingRepository;
     private readonly ILogger<RoomService> _logger;
 
     public RoomService(
-        BookingDbContext dbContext,
+        IRoomRepository roomRepository,
+        IBookingRepository bookingRepository,
         ILogger<RoomService> logger)
     {
-        _dbContext = dbContext;
+        _roomRepository = roomRepository;
+        _bookingRepository = bookingRepository;
         _logger = logger;
 
         _logger.LogInformation("RoomService создан");
@@ -32,65 +36,41 @@ public class RoomService : IRoomService
 
         ValidateRoom(dto.Class, dto.Description, dto.PricePerDay);
 
-        var room = new Room(
-            dto.Class,
-            dto.PricePerDay,
-            dto.Description
-        );
+        var room = new Room(dto.Class, dto.PricePerDay, dto.Description);
 
-        _dbContext.Rooms.Add(room);
-        await _dbContext.SaveChangesAsync();
-
-        _logger.LogInformation("Комната создана | RoomId={RoomId}", room.Id);
+        await _roomRepository.AddAsync(room);
+        await _roomRepository.SaveChangesAsync();
 
         return MapToDto(room);
     }
 
     public async Task DeleteRoomAsync(int roomId)
     {
-        _logger.LogInformation("DeleteRoomAsync | RoomId={RoomId}", roomId);
-
-        var room = await _dbContext.Rooms
-            .FirstOrDefaultAsync(r => r.Id == roomId && !r.IsDeleted);
+        var room = await _roomRepository.GetActiveByIdAsync(roomId);
 
         if (room == null)
-        {
-            _logger.LogWarning("Комната не найдена | RoomId={RoomId}", roomId);
             throw new NotFoundException($"Комната {roomId} не найдена");
-        }
 
         room.Delete();
-        await _dbContext.SaveChangesAsync();
-
-        _logger.LogInformation("Комната удалена | RoomId={RoomId}", roomId);
+        await _roomRepository.SaveChangesAsync();
     }
 
     public async Task<RoomDto> RestoreAsync(int roomId)
     {
-        _logger.LogInformation("RestoreAsync | RoomId={RoomId}", roomId);
+        var room = await _roomRepository.GetByIdAsync(roomId);
 
-        var room = await _dbContext.Rooms
-            .FirstOrDefaultAsync(r => r.Id == roomId && r.IsDeleted);
-
-        if (room == null)
-        {
-            _logger.LogWarning("Удалённая комната не найдена | RoomId={RoomId}", roomId);
+        if (room == null || !room.IsDeleted)
             throw new NotFoundException($"Удалённая комната {roomId} не найдена");
-        }
 
         room.Restore();
-        await _dbContext.SaveChangesAsync();
-
-        _logger.LogInformation("Комната восстановлена | RoomId={RoomId}", roomId);
+        await _roomRepository.SaveChangesAsync();
 
         return MapToDto(room);
     }
 
     public async Task<List<RoomDto>> GetAllAsync()
     {
-        _logger.LogInformation("GetAllAsync");
-
-        var rooms = await _dbContext.Rooms
+        var rooms = await _roomRepository.Query()
             .AsNoTracking()
             .Where(r => !r.IsDeleted)
             .ToListAsync();
@@ -100,40 +80,24 @@ public class RoomService : IRoomService
 
     public async Task<PagedResultDto<RoomDto>> GetFilteredAsync(RoomFilterDto filter)
     {
-        _logger.LogInformation(
-            "GetFilteredAsync | Class={Class}, MinPrice={MinPrice}, MaxPrice={MaxPrice}, SortBy={SortBy}, Page={Page}, PageSize={PageSize}",
-            filter.Class,
-            filter.MinPrice,
-            filter.MaxPrice,
-            filter.SortBy,
-            filter.Page,
-            filter.PageSize);
-
         if (filter.Page <= 0)
             throw new ValidationException("Page должен быть больше нуля");
 
         if (filter.PageSize <= 0)
             throw new ValidationException("PageSize должен быть больше нуля");
 
-        var query = _dbContext.Rooms
+        var query = _roomRepository.Query()
             .AsNoTracking()
-            .Where(r => !r.IsDeleted)
-            .AsQueryable();
+            .Where(r => !r.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(filter.Class))
-        {
             query = query.Where(r => r.Class == filter.Class);
-        }
 
         if (filter.MinPrice.HasValue)
-        {
             query = query.Where(r => r.PricePerDay >= filter.MinPrice.Value);
-        }
 
         if (filter.MaxPrice.HasValue)
-        {
             query = query.Where(r => r.PricePerDay <= filter.MaxPrice.Value);
-        }
 
         query = filter.SortBy switch
         {
@@ -160,69 +124,40 @@ public class RoomService : IRoomService
 
     public async Task<List<RoomDto>> GetByStatusAsync(string status)
     {
-        _logger.LogInformation("GetByStatusAsync | Status={Status}", status);
-
         if (string.IsNullOrWhiteSpace(status))
             throw new ValidationException("Статус комнаты обязателен");
 
         if (!Enum.TryParse<RoomStatus>(status, true, out var parsedStatus))
             throw new ValidationException("Некорректный статус комнаты");
 
-        var rooms = await _dbContext.Rooms
-            .AsNoTracking()
-            .Where(r => !r.IsDeleted && r.Status == parsedStatus)
-            .OrderBy(r => r.Id)
-            .ToListAsync();
-
+        var rooms = await _roomRepository.GetByStatusAsync(parsedStatus);
         return rooms.Select(MapToDto).ToList();
     }
 
     public async Task<List<RoomDto>> GetDeletedAsync()
     {
-        _logger.LogInformation("GetDeletedAsync");
-
-        var rooms = await _dbContext.Rooms
-            .AsNoTracking()
-            .Where(r => r.IsDeleted)
-            .OrderBy(r => r.Id)
-            .ToListAsync();
-
+        var rooms = await _roomRepository.GetDeletedAsync();
         return rooms.Select(MapToDto).ToList();
     }
 
     public async Task<RoomDto> UpdateRoomAsync(int roomId, UpdateRoomDto dto)
     {
-        _logger.LogInformation(
-            "UpdateRoomAsync | RoomId={RoomId}, Class={Class}, PricePerDay={Price}",
-            roomId,
-            dto.Class,
-            dto.PricePerDay);
-
         ValidateRoom(dto.Class, dto.Description, dto.PricePerDay);
 
-        var room = await _dbContext.Rooms
-            .FirstOrDefaultAsync(r => r.Id == roomId && !r.IsDeleted);
+        var room = await _roomRepository.GetActiveByIdAsync(roomId);
 
         if (room == null)
-        {
-            _logger.LogWarning("Комната не найдена | RoomId={RoomId}", roomId);
             throw new NotFoundException($"Комната {roomId} не найдена");
-        }
 
         room.Update(dto.Class, dto.PricePerDay, dto.Description);
-
-        await _dbContext.SaveChangesAsync();
-
-        _logger.LogInformation("Комната обновлена | RoomId={RoomId}", roomId);
+        await _roomRepository.SaveChangesAsync();
 
         return MapToDto(room);
     }
 
     public async Task<RoomDto?> GetByIdAsync(int roomId)
     {
-        _logger.LogInformation("GetByIdAsync | RoomId={RoomId}", roomId);
-
-        var room = await _dbContext.Rooms
+        var room = await _roomRepository.Query()
             .AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == roomId && !r.IsDeleted);
 
@@ -231,36 +166,83 @@ public class RoomService : IRoomService
 
     public async Task<RoomDto> UpdateStatusAsync(int roomId, UpdateRoomStatusDto dto)
     {
-        _logger.LogInformation(
-            "UpdateStatusAsync | RoomId={RoomId}, Status={Status}",
-            roomId,
-            dto.Status);
-
         if (string.IsNullOrWhiteSpace(dto.Status))
             throw new ValidationException("Статус комнаты обязателен");
 
         if (!Enum.TryParse<RoomStatus>(dto.Status, true, out var parsedStatus))
             throw new ValidationException("Некорректный статус комнаты");
 
-        var room = await _dbContext.Rooms
-            .FirstOrDefaultAsync(r => r.Id == roomId && !r.IsDeleted);
+        var room = await _roomRepository.GetActiveByIdAsync(roomId);
 
         if (room == null)
-        {
-            _logger.LogWarning("Комната не найдена | RoomId={RoomId}", roomId);
             throw new NotFoundException($"Комната {roomId} не найдена");
-        }
 
         room.ChangeStatus(parsedStatus);
-
-        await _dbContext.SaveChangesAsync();
-
-        _logger.LogInformation(
-            "Статус комнаты обновлён | RoomId={RoomId}, Status={Status}",
-            roomId,
-            parsedStatus);
+        await _roomRepository.SaveChangesAsync();
 
         return MapToDto(room);
+    }
+
+    public async Task<RoomAvailabilityDto> CheckAvailabilityAsync(int roomId, RoomAvailabilityQueryDto query)
+    {
+        if (roomId <= 0)
+            throw new ValidationException("RoomId должен быть больше нуля");
+
+        if (query.DateFrom >= query.DateTo)
+            throw new ValidationException("Дата начала должна быть раньше даты окончания");
+
+        var room = await _roomRepository.GetActiveByIdAsync(roomId);
+
+        if (room == null)
+            throw new NotFoundException($"Комната {roomId} не найдена");
+
+        if (room.Status != RoomStatus.Available)
+        {
+            return new RoomAvailabilityDto
+            {
+                RoomId = roomId,
+                IsAvailable = false,
+                Message = "Комната недоступна для бронирования",
+                RoomStatus = room.Status.ToString()
+            };
+        }
+
+        var hasConflict = await _bookingRepository.HasActiveConflictAsync(
+            roomId,
+            query.DateFrom,
+            query.DateTo);
+
+        return new RoomAvailabilityDto
+        {
+            RoomId = roomId,
+            IsAvailable = !hasConflict,
+            Message = hasConflict
+                ? "Комната занята на выбранные даты"
+                : "Комната доступна",
+            RoomStatus = room.Status.ToString()
+        };
+    }
+
+    public async Task<List<BookingCalendarItemDto>> GetCalendarAsync(int roomId)
+    {
+        if (roomId <= 0)
+            throw new ValidationException("RoomId должен быть больше нуля");
+
+        var room = await _roomRepository.GetByIdAsync(roomId);
+
+        if (room == null)
+            throw new NotFoundException($"Комната {roomId} не найдена");
+
+        return await _bookingRepository.Query()
+            .AsNoTracking()
+            .Where(b => b.RoomId == roomId && !b.IsCancelled)
+            .OrderBy(b => b.DateFrom)
+            .Select(b => new BookingCalendarItemDto
+            {
+                DateFrom = b.DateFrom,
+                DateTo = b.DateTo
+            })
+            .ToListAsync();
     }
 
     private static void ValidateRoom(string roomClass, string description, decimal pricePerDay)
